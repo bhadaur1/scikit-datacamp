@@ -1,14 +1,16 @@
-from sklearn import datasets
-from sklearn.decomposition import PCA
+# Data manipulation libs
 import pandas as pd
 import numpy as np
+
+# Plotting libs
 import matplotlib.pyplot as plt
+
+# ML libs
+from sklearn import datasets, svm, cluster, metrics
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import scale
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.manifold import Isomap
-from sklearn import cluster
-from sklearn.metrics import homogeneity_score, completeness_score,\
-    v_measure_score, adjusted_rand_score, adjusted_mutual_info_score, silhouette_score
 
 digits = datasets.load_digits()
 # digits = pd.read_csv("http://archive.ics.uci.edu/ml/machine-learning-databases/optdigits/optdigits.tra", header=None)
@@ -98,7 +100,7 @@ plt.show()
 # ---------------------   Do predictions and study metrics -----------------------------------
 
 # Predict the labels for `X_test`
-y_pred=clf.predict(X_test)
+y_pred = clf.predict(X_test)
 
 # Print out the first 100 instances of `y_pred`
 print(y_pred[:100])
@@ -109,17 +111,15 @@ print(y_test[:100])
 # Study the shape of the cluster centers
 clf.cluster_centers_.shape
 
-
 print('% 9s' % 'inertia    homo   compl  v-meas     ARI AMI  silhouette')
 print('%i   %.3f   %.3f   %.3f   %.3f   %.3f    %.3f'
-          %(clf.inertia_,
-      homogeneity_score(y_test, y_pred),
-      completeness_score(y_test, y_pred),
-      v_measure_score(y_test, y_pred),
-      adjusted_rand_score(y_test, y_pred),
-      adjusted_mutual_info_score(y_test, y_pred),
-      silhouette_score(X_test, y_pred, metric='euclidean')))
-
+      % (clf.inertia_,
+         metrics.homogeneity_score(y_test, y_pred),
+         metrics.completeness_score(y_test, y_pred),
+         metrics.v_measure_score(y_test, y_pred),
+         metrics.adjusted_rand_score(y_test, y_pred),
+         metrics.adjusted_mutual_info_score(y_test, y_pred),
+         metrics.silhouette_score(X_test, y_pred, metric='euclidean')))
 
 # Create an isomap and fit the `digits` data to it
 X_iso = Isomap(n_neighbors=10).fit_transform(X_train)
@@ -142,3 +142,49 @@ ax[1].set_title('Actual Training Labels')
 
 # Show the plots
 plt.show()
+
+# --------------- Support Vector Machine model --------------------------
+
+# Create the SVC model
+svc_model = svm.SVC(gamma=0.001, C=100., kernel='linear')
+
+# Fit the data to the SVC model
+svc_model.fit(X_train, y_train)
+
+y_pred = svc_model.predict(X_test)
+
+# Print the classification report of `y_test` and `predicted`
+print(metrics.classification_report(y_test, y_pred))
+
+# Print the confusion matrix
+print(metrics.confusion_matrix(y_test, y_pred))
+
+# -----------------  Grid search ---------------------------
+
+# Split the `digits` data into two equal sets
+X_train, X_test, y_train, y_test = train_test_split(digits.data, digits.target, test_size=0.5, random_state=0)
+
+# Set the parameter candidates
+parameter_candidates = [
+    {'C': [1, 10, 100, 1000], 'kernel': ['linear']},
+    {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']},
+]
+
+# Create a classifier with the parameter candidates
+clf = GridSearchCV(estimator=svm.SVC(), param_grid=parameter_candidates, n_jobs=-1)
+
+# Train the classifier on training data
+clf.fit(X_train, y_train)
+
+# Print out the results
+print('Best score for training data:', clf.best_score_)
+print('Best `C`:', clf.best_estimator_.C)
+print('Best kernel:', clf.best_estimator_.kernel)
+print('Best `gamma`:', clf.best_estimator_.gamma)
+
+
+# Apply the classifier to the test data, and view the accuracy score
+clf.score(X_test, y_test)
+
+# Train and score a new classifier with the grid search parameters
+svm.SVC(C=10, kernel='rbf', gamma=0.001).fit(X_train, y_train).score(X_test, y_test)
