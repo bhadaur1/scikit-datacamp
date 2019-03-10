@@ -1,3 +1,14 @@
+"""
+This exercise is on classification using the digits data stored in scikit-learn datasets library.
+The first part is to plot the dataset, then we move to use PCA and visualize the lower dimensional dataset.
+Then under the assumptions that the labels are not provided, we use a Kmeans algorithm to cluster data.
+Later we use a SVM with grid search to find optimal hyper-parameters
+
+Mostly followed the tutorial by Karlijn Willems at datacamp
+
+https://www.datacamp.com/community/tutorials/machine-learning-python
+
+"""
 # Data manipulation libs
 import pandas as pd
 import numpy as np
@@ -103,10 +114,10 @@ plt.show()
 y_pred = clf.predict(X_test)
 
 # Print out the first 100 instances of `y_pred`
-print(y_pred[:100])
+print("y_pred = {}".format(y_pred[:100]))
 
 # Print out the first 100 instances of `y_test`
-print(y_test[:100])
+print("y_test = {}".format(y_test[:100]))
 
 # Study the shape of the cluster centers
 clf.cluster_centers_.shape
