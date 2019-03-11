@@ -140,36 +140,6 @@ print("Confusion matrix = \n{}".format(metrics.confusion_matrix(target_test, tar
 
 # %% Now repeat with this sklearn pipelines
 
-"""
-Note:
-Since label encoder works only on one column at a time, we would need to enhance its capability.
-Write a derived class MultiColLabelEncoder to achieve that.
-Update -- transfrom() method has to be updated too
-"""
-
-
-"""
-class MultiColLabelEncoder(preprocessing.LabelEncoder):
-
-    def fit_transform(self, X, y=None):
-
-        cols = None
-        isDF = False
-        if isinstance(X, pd.DataFrame):
-            isDF = True
-            cols = X.columns
-            X = X.to_numpy()
-
-        _, ncols = X.shape
-        for col in range(0, ncols):
-            X[:, col] = super().fit_transform(X[:, col])
-
-        if isDF:
-            X = pd.DataFrame(data=X, columns=cols)
-
-        return X
-"""
-
 # Define imputation and scaling strategy
 numeric_transformer = Pipeline(
     steps=[
@@ -181,8 +151,8 @@ numeric_transformer = Pipeline(
 categorical_transformer = Pipeline(
     steps=[
         ('imputer', SimpleImputer(missing_values=' ?', strategy='most_frequent')),
-        #('targetencode', ce.TargetEncoder()),
-        ('labelencode', ce.OrdinalEncoder()),
+        ('targetencode', ce.TargetEncoder()),
+        #('labelencode', ce.OrdinalEncoder()),
         #('binaryencode', ce.BinaryEncoder()),
         #('scalar', preprocessing.StandardScaler())
     ]
@@ -214,8 +184,8 @@ yall = preprocessing.LabelEncoder().fit_transform(dftrain['income'])
 for value in categorical_features:
     dfXall[value].replace([' ?'], [dfXall.describe(include='all')[value][2]], inplace=True)
     dfXall[value] = le.fit_transform(dfXall[value])
-#dfXall[categorical_features] = dfXall[categorical_features].apply(preprocessing.LabelEncoder().fit_transform)"""
-
+# dfXall[categorical_features] = dfXall[categorical_features].apply(preprocessing.LabelEncoder().fit_transform)
+"""
 # Test-train split and resetting index
 X_train, X_test, y_train, y_test = train_test_split(dfXall, yall, test_size=0.33,
                                                     random_state=10)
