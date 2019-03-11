@@ -1,11 +1,23 @@
 # Import scikit-learn dataset library
-from sklearn import datasets, metrics, preprocessing
+from sklearn import datasets, metrics, preprocessing, svm, naive_bayes
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
+
+# Pipeline related stuff
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+
+# Category encoder
+import category_encoders as ce
 
 # Pandas
 import pandas as pd
 import numpy as np
+
+# Misc
+import itertools
+
 
 # %% -------------------------------------------------------------------------------------------------------------------
 """
@@ -58,58 +70,51 @@ dftrain.columns = ['age', 'workclass', 'fnlwgt', 'education', 'education_num',
                    'race', 'sex', 'capital_gain', 'capital_loss',
                    'hours_per_week', 'native_country', 'income']
 
+# Define numeric and categorical features
+categorical_features = ['workclass', 'education',
+                        'marital_status', 'occupation',
+                        'relationship', 'race', 'sex',
+                        'native_country']
+
+numeric_features = ['age', 'fnlwgt',
+                    'education_num', 'capital_gain',
+                    'capital_loss', 'hours_per_week']
+
+
+#%%
+"""
+Brute force implementation without Pipelines
+"""
 
 # Label enconding
 desc = dftrain.describe(include='all')
 adult_df = dftrain.copy(deep=True)
 
 # Data imputation by most common (top) value coming from dataframe.describe
+# Followed by target encoding
 # keep in mind that if a deep copy is not made, it would change the original dataframe
-for value in ['workclass', 'education',
-              'marital_status', 'occupation',
-              'relationship', 'race', 'sex',
-              'native_country', 'income']:
-    adult_df[value].replace([' ?'], [adult_df.describe(include='all')[value][2]], inplace=True)
-
 # Define a label encoder and encode all categorical variables
-le = preprocessing.LabelEncoder()
-workclass_cat = le.fit_transform(adult_df.workclass)
-education_cat = le.fit_transform(adult_df.education)
-marital_cat = le.fit_transform(adult_df.marital_status)
-occupation_cat = le.fit_transform(adult_df.occupation)
-relationship_cat = le.fit_transform(adult_df.relationship)
-race_cat = le.fit_transform(adult_df.race)
-sex_cat = le.fit_transform(adult_df.sex)
-native_country_cat = le.fit_transform(adult_df.native_country)
-income_cat = le.fit_transform(adult_df.income)
 
-# Append the new columns to the dataframe
-adult_df['workclass_cat'] = workclass_cat
-adult_df['education_cat'] = education_cat
-adult_df['marital_cat'] = marital_cat
-adult_df['occupation_cat'] = occupation_cat
-adult_df['relationship_cat'] = relationship_cat
-adult_df['race_cat'] = race_cat
-adult_df['sex_cat'] = sex_cat
-adult_df['native_country_cat'] = native_country_cat
-adult_df['income'] = income_cat
+le = preprocessing.LabelEncoder()
+
+# We add income -- the response variable in here too
+for value in itertools.chain(categorical_features, ['income']):
+    adult_df[value].replace([' ?'], [adult_df.describe(include='all')[value][2]], inplace=True)
+    adult_df[value+'_cat'] = le.fit_transform(adult_df[value])
 
 # Drop the categorical columns as they have already been encoded and appended
-dummy_fields = ['workclass', 'education', 'marital_status',
-                'occupation', 'relationship', 'race',
-                'sex', 'native_country']
-adult_df.drop(dummy_fields, axis=1, inplace=True)
+adult_df.drop(categorical_features, axis=1, inplace=True)
 
 # Reindex columns
 adult_df = adult_df.reindex(['age', 'workclass_cat', 'fnlwgt', 'education_cat',
-                             'education_num', 'marital_cat', 'occupation_cat',
+                             'education_num', 'marital_status_cat', 'occupation_cat',
                              'relationship_cat', 'race_cat', 'sex_cat', 'capital_gain',
                              'capital_loss', 'hours_per_week', 'native_country_cat',
-                             'income'], axis=1)
+                             'income_cat'], axis=1)
 
-# Scale the features
+# Scale the features manually
 num_features = ['age', 'workclass_cat', 'fnlwgt', 'education_cat', 'education_num',
-                'marital_cat', 'occupation_cat', 'relationship_cat', 'race_cat',
+                'marital_status_cat', 'occupation_cat', 'relationship_cat', 'race_cat',
                 'sex_cat', 'capital_gain', 'capital_loss', 'hours_per_week',
                 'native_country_cat']
 
@@ -131,5 +136,96 @@ target_pred = clf.predict(features_test)
 
 print("Accuracy score = {}".format(metrics.accuracy_score(target_test, target_pred, normalize=True)))
 print("AUC score = {}".format(metrics.roc_auc_score(target_test, target_pred)))
+print("Confusion matrix = \n{}".format(metrics.confusion_matrix(target_test, target_pred)))
 
 # %% Now repeat with this sklearn pipelines
+
+"""
+Note:
+Since label encoder works only on one column at a time, we would need to enhance its capability.
+Write a derived class MultiColLabelEncoder to achieve that.
+Update -- transfrom() method has to be updated too
+"""
+
+
+"""
+class MultiColLabelEncoder(preprocessing.LabelEncoder):
+
+    def fit_transform(self, X, y=None):
+
+        cols = None
+        isDF = False
+        if isinstance(X, pd.DataFrame):
+            isDF = True
+            cols = X.columns
+            X = X.to_numpy()
+
+        _, ncols = X.shape
+        for col in range(0, ncols):
+            X[:, col] = super().fit_transform(X[:, col])
+
+        if isDF:
+            X = pd.DataFrame(data=X, columns=cols)
+
+        return X
+"""
+
+# Define imputation and scaling strategy
+numeric_transformer = Pipeline(
+    steps=[
+        ('imputer', SimpleImputer(strategy='mean')),
+        ('scalar', preprocessing.StandardScaler())
+    ]
+)
+
+categorical_transformer = Pipeline(
+    steps=[
+        ('imputer', SimpleImputer(missing_values=' ?', strategy='most_frequent')),
+        #('targetencode', ce.TargetEncoder()),
+        ('labelencode', ce.OrdinalEncoder()),
+        #('binaryencode', ce.BinaryEncoder()),
+        #('scalar', preprocessing.StandardScaler())
+    ]
+)
+
+# Assemble transformation tasks
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('numerical', numeric_transformer, numeric_features),
+        ('categorical', categorical_transformer, categorical_features)
+    ]
+)
+
+# Create model pipeline -- that will first run the preprocessor and then apply model
+pplmodel = Pipeline(
+    steps=[
+        ('preprocessor', preprocessor),
+        ('GaussianNB', naive_bayes.GaussianNB())
+        #('svm-linear', svm.SVC(gamma=0.001, C=100., kernel='linear'))
+    ]
+)
+
+# Split into features and response
+dfXall = dftrain[numeric_features+categorical_features]
+yall = preprocessing.LabelEncoder().fit_transform(dftrain['income'])
+
+# If we want to use label encoder
+"""le = preprocessing.LabelEncoder()
+for value in categorical_features:
+    dfXall[value].replace([' ?'], [dfXall.describe(include='all')[value][2]], inplace=True)
+    dfXall[value] = le.fit_transform(dfXall[value])
+#dfXall[categorical_features] = dfXall[categorical_features].apply(preprocessing.LabelEncoder().fit_transform)"""
+
+# Test-train split and resetting index
+X_train, X_test, y_train, y_test = train_test_split(dfXall, yall, test_size=0.33,
+                                                    random_state=10)
+X_train.reset_index(drop=True, inplace=True)
+X_test.reset_index(drop=True, inplace=True)
+
+pplmodel.fit(X_train, y_train)
+y_pred_train = pplmodel.predict(X_train)
+y_pred_test = pplmodel.predict(X_test)
+
+print("Accuracy score = {}".format(metrics.accuracy_score(y_test, y_pred_test, normalize=True)))
+print("AUC score = {}".format(metrics.roc_auc_score(y_test, y_pred_test)))
+print("Confusion matrix = \n{}".format(metrics.confusion_matrix(y_test, y_pred_test)))
