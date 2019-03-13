@@ -30,13 +30,18 @@ dftrain.columns = ['age', 'workclass', 'fnlwgt', 'education', 'education_num',
                    'race', 'sex', 'capital_gain', 'capital_loss',
                    'hours_per_week', 'native_country', 'income']
 
+dftest.columns = dftrain.columns
+
+del dftrain["fnlwgt"]
+del dftest["fnlwgt"]
+
 # Define numeric and categorical features
 categorical_features = ['workclass', 'education',
                         'marital_status', 'occupation',
                         'relationship', 'race', 'sex',
                         'native_country']
 
-numeric_features = ['age', 'fnlwgt',
+numeric_features = ['age', # 'fnlwgt',
                     'education_num', 'capital_gain',
                     'capital_loss', 'hours_per_week']
 # %% -------------------------------------------------------------------------------------------------------------------
@@ -69,18 +74,18 @@ input_func = tf.estimator.inputs.pandas_input_fn(x=X_train, y=y_train, batch_siz
 
 # Define model as Linear Classifier
 model = tf.estimator.DNNClassifier(
-    hidden_units=[512, 256, 512],
+    hidden_units=[100, 50],
     feature_columns=tf_feat_col,
     n_classes=2,
-    activation_fn=tf.nn.tanh,
+    activation_fn=tf.nn.sigmoid,
     optimizer=lambda: tf.train.AdamOptimizer(
         learning_rate=tf.train.exponential_decay(learning_rate=0.001,
                                                  global_step=tf.train.get_global_step(),
-                                                 decay_steps=10000,
+                                                 decay_steps=100,
                                                  decay_rate=0.96)))
 
 # Train the model
-model.train(input_fn=input_func, steps=1000)
+model.train(input_fn=input_func, steps=2800)
 
 # Evaluate the model
 eval_input_func = tf.estimator.inputs.pandas_input_fn(x=X_test, y=y_test, batch_size=10, num_epochs=1, shuffle=False)
@@ -92,3 +97,6 @@ y_pred_test = np.array(list(out[i]['class_ids'][0] for i in range(len(out))))
 print("Accuracy score = {}".format(metrics.accuracy_score(y_test, y_pred_test, normalize=True)))
 print("AUC score = {}".format(metrics.roc_auc_score(y_test, y_pred_test)))
 print("Confusion matrix = \n{}".format(metrics.confusion_matrix(y_test, y_pred_test)))
+
+print("Classification report = \n{}".format(metrics.classification_report(y_test, y_pred_test)))
+

@@ -61,9 +61,8 @@ Following the blog on:
 http://dataaspirant.com/2017/02/20/gaussian-naive-bayes-classifier-implementation-python/
 """
 
-dftrain = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data', header=None)
-dftest = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test', header=None,
-                     skiprows=1)
+dftrain = pd.read_csv('adult.train', header=None)
+dftest = pd.read_csv('adult.test', header=None,skiprows=1)
 
 dftrain.columns = ['age', 'workclass', 'fnlwgt', 'education', 'education_num',
                    'marital_status', 'occupation', 'relationship',
@@ -199,3 +198,5 @@ y_pred_test = pplmodel.predict(X_test)
 print("Accuracy score = {}".format(metrics.accuracy_score(y_test, y_pred_test, normalize=True)))
 print("AUC score = {}".format(metrics.roc_auc_score(y_test, y_pred_test)))
 print("Confusion matrix = \n{}".format(metrics.confusion_matrix(y_test, y_pred_test)))
+
+print("Classification report = \n{}".format(metrics.classification_report(y_test, y_pred_test)))
