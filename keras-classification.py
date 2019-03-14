@@ -61,11 +61,11 @@ X = adult_df[numeric_features + categorical_features].to_numpy()
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=10)
 
 model = Sequential()
-model.add(Dense(100, activation='relu', input_dim=13))
-model.add(Dense(50, activation='relu'))
+model.add(Dense(4, activation='tanh', input_dim=13))
+model.add(Dense(4, activation='tanh'))
 model.add(Dense(1, activation='sigmoid'))
-model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-model.fit(X_train, y_train, epochs=1000, batch_size=5000)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=50, batch_size=50)
 
 #%%
 # predictions = model.predict(X_test)
